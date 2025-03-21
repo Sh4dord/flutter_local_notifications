@@ -1,3 +1,17 @@
+/// Give a final shape to a bitmap
+enum ImageShape {
+  /// Make Bitmap shape rounded
+  rounded(0),
+
+  /// Make Bitmap shape circular
+  circular(1);
+
+  const ImageShape(this.apiValue);
+
+  /// Android side position enum
+  final int apiValue;
+}
+
 /// Specifies the source for a bitmap used by Android notifications.
 enum AndroidBitmapSource {
   /// A drawable.

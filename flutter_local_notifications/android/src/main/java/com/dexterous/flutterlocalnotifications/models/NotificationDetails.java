@@ -73,6 +73,7 @@ public class NotificationDetails implements Serializable {
   private static final String COLOR_BLUE = "colorBlue";
   private static final String LARGE_ICON = "largeIcon";
   private static final String LARGE_ICON_BITMAP_SOURCE = "largeIconBitmapSource";
+  private static final String LARGE_ICON_BITMAP_SHAPE = "largeIconBitmapShape";
   private static final String BIG_PICTURE = "bigPicture";
   private static final String BIG_PICTURE_BITMAP_SOURCE = "bigPictureBitmapSource";
   private static final String HIDE_EXPANDED_LARGE_ICON = "hideExpandedLargeIcon";
@@ -88,6 +89,7 @@ public class NotificationDetails implements Serializable {
   private static final String TIMESTAMP = "timestamp";
   private static final String BOT = "bot";
   private static final String ICON_SOURCE = "iconSource";
+  private static final String IMAGE_SHAPE = "iconShape";
   private static final String IMPORTANT = "important";
   private static final String KEY = "key";
   private static final String NAME = "name";
@@ -163,6 +165,7 @@ public class NotificationDetails implements Serializable {
   public Integer color;
   public Object largeIcon;
   public BitmapSource largeIconBitmapSource;
+  public ImageShape largeIconBitmapShape;
   public Boolean onlyAlertOnce;
   public Boolean showProgress;
   public Integer maxProgress;
@@ -330,16 +333,22 @@ public class NotificationDetails implements Serializable {
     }
   }
 
-  private static void readLargeIconInformation(
-      NotificationDetails notificationDetails, Map<String, Object> platformChannelSpecifics) {
-    notificationDetails.largeIcon = platformChannelSpecifics.get(LARGE_ICON);
-    if (platformChannelSpecifics.containsKey(LARGE_ICON_BITMAP_SOURCE)) {
-      Integer argumentValue = (Integer) platformChannelSpecifics.get(LARGE_ICON_BITMAP_SOURCE);
-      if (argumentValue != null) {
-        notificationDetails.largeIconBitmapSource = BitmapSource.values()[argumentValue];
-      }
+    private static void readLargeIconInformation(
+            NotificationDetails notificationDetails, Map<String, Object> platformChannelSpecifics) {
+        notificationDetails.largeIcon = platformChannelSpecifics.get(LARGE_ICON);
+        if (platformChannelSpecifics.containsKey(LARGE_ICON_BITMAP_SOURCE)) {
+            Integer argumentValue = (Integer) platformChannelSpecifics.get(LARGE_ICON_BITMAP_SOURCE);
+            if (argumentValue != null) {
+                notificationDetails.largeIconBitmapSource = BitmapSource.values()[argumentValue];
+            }
+        }
+        if (platformChannelSpecifics.containsKey(LARGE_ICON_BITMAP_SHAPE)) {
+            Integer argumentValue = (Integer) platformChannelSpecifics.get(LARGE_ICON_BITMAP_SHAPE);
+            if (argumentValue != null) {
+                notificationDetails.largeIconBitmapShape = ImageShape.values()[argumentValue];
+            }
+        }
     }
-  }
 
   private static void readGroupingInformation(
       NotificationDetails notificationDetails, Map<String, Object> platformChannelSpecifics) {
@@ -445,20 +454,22 @@ public class NotificationDetails implements Serializable {
             defaultStyleInformation.htmlFormatBody);
   }
 
-  private static PersonDetails readPersonDetails(Map<String, Object> person) {
-    if (person == null) {
-      return null;
+    private static PersonDetails readPersonDetails(Map<String, Object> person) {
+        if (person == null) {
+            return null;
+        }
+        Boolean bot = (Boolean) person.get(BOT);
+        Object icon = person.get(ICON);
+        Integer iconSourceIndex = (Integer) person.get(ICON_SOURCE);
+        Integer iconShapeIndex = (Integer) person.get(IMAGE_SHAPE);
+        IconSource iconSource = iconSourceIndex == null ? null : IconSource.values()[iconSourceIndex];
+        ImageShape imageShape = iconShapeIndex == null ? null : ImageShape.values()[iconShapeIndex];
+        Boolean important = (Boolean) person.get(IMPORTANT);
+        String key = (String) person.get(KEY);
+        String name = (String) person.get(NAME);
+        String uri = (String) person.get(URI);
+        return new PersonDetails(bot, icon, iconSource, imageShape, important, key, name, uri);
     }
-    Boolean bot = (Boolean) person.get(BOT);
-    Object icon = person.get(ICON);
-    Integer iconSourceIndex = (Integer) person.get(ICON_SOURCE);
-    IconSource iconSource = iconSourceIndex == null ? null : IconSource.values()[iconSourceIndex];
-    Boolean important = (Boolean) person.get(IMPORTANT);
-    String key = (String) person.get(KEY);
-    String name = (String) person.get(NAME);
-    String uri = (String) person.get(URI);
-    return new PersonDetails(bot, icon, iconSource, important, key, name, uri);
-  }
 
   @SuppressWarnings("unchecked")
   private static ArrayList<MessageDetails> readMessages(ArrayList<Map<String, Object>> messages) {

@@ -8,6 +8,9 @@ abstract class AndroidIcon<T> {
   /// The location to the icon;
   T get data;
 
+  /// Shape of the bitmap
+  ImageShape? get shape => null;
+
   /// The subclass source type
   AndroidIconSource get source;
 }
@@ -28,15 +31,20 @@ class DrawableResourceAndroidIcon implements AndroidIcon<String> {
 
   @override
   AndroidIconSource get source => AndroidIconSource.drawableResource;
+
+  @override
+  ImageShape? get shape => null;
 }
 
 /// Represents a file path to a bitmap that should be used for as an icon on
 /// Android.
 class BitmapFilePathAndroidIcon implements AndroidIcon<String> {
   /// Constructs an instance of [BitmapFilePathAndroidIcon].
-  const BitmapFilePathAndroidIcon(this._icon);
+  const BitmapFilePathAndroidIcon(this._icon, [this._shape]);
 
   final String _icon;
+
+  final ImageShape? _shape;
 
   /// A file path on the Android device that refers to the location of the icon.
   @override
@@ -44,6 +52,9 @@ class BitmapFilePathAndroidIcon implements AndroidIcon<String> {
 
   @override
   AndroidIconSource get source => AndroidIconSource.bitmapFilePath;
+
+  @override
+  ImageShape? get shape => _shape;
 }
 
 /// Represents a content URI that should be used for as an icon on Android.
@@ -59,6 +70,9 @@ class ContentUriAndroidIcon implements AndroidIcon<String> {
 
   @override
   AndroidIconSource get source => AndroidIconSource.contentUri;
+
+  @override
+  ImageShape? get shape => null;
 }
 
 /// Represents a bitmap asset belonging to the Flutter application that should
@@ -85,6 +99,9 @@ class FlutterBitmapAssetAndroidIcon implements AndroidIcon<String> {
 
   @override
   AndroidIconSource get source => AndroidIconSource.flutterBitmapAsset;
+
+  @override
+  ImageShape? get shape => null;
 }
 
 /// Represents a bitmap asset belonging to the Flutter application that should
@@ -105,4 +122,7 @@ class ByteArrayAndroidIcon implements AndroidIcon<Uint8List> {
 
   @override
   AndroidIconSource get source => AndroidIconSource.byteArray;
+
+  @override
+  ImageShape? get shape => null;
 }

@@ -3,6 +3,7 @@ import 'notification_action.dart';
 import 'notification_attachment.dart';
 import 'notification_category.dart';
 import 'notification_details.dart';
+import 'send_message_intent.dart';
 
 // ignore_for_file: public_member_api_docs
 
@@ -69,6 +70,26 @@ extension DarwinNotificationAttachmentMapper on DarwinNotificationAttachment {
       };
 }
 
+extension DarwinPersonMapper on DarwinPerson {
+  Map<String, Object?> toMap() => <String, Object?>{
+        'name': name,
+        'isMe': isMe,
+        if (icon != null) 'icon': icon,
+      };
+}
+
+extension DarwinSendMessageIntentMapper on DarwinSendMessageIntent {
+  Map<String, Object?> toMap() => <String, Object?>{
+        'recipients': recipients
+            .map((a) => a.toMap()) // ignore: always_specify_types
+            .toList(),
+        'content': content,
+        if (conversationTitle != null) 'conversationTitle': conversationTitle,
+        if (icon != null) 'icon': icon,
+        'sender': sender.toMap(),
+      };
+}
+
 extension DarwinNotificationDetailsMapper on DarwinNotificationDetails {
   Map<String, Object?> toMap() => <String, Object?>{
         'presentAlert': presentAlert,
@@ -84,6 +105,7 @@ extension DarwinNotificationDetailsMapper on DarwinNotificationDetails {
         'attachments': attachments
             ?.map((a) => a.toMap()) // ignore: always_specify_types
             .toList(),
+        'sendMessageIntent': sendMessageIntent?.toMap(),
         'categoryIdentifier': categoryIdentifier,
         'criticalSoundVolume': criticalSoundVolume,
       };

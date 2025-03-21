@@ -72,6 +72,15 @@ NSString *const TITLE = @"title";
 NSString *const SUBTITLE = @"subtitle";
 NSString *const BODY = @"body";
 NSString *const SOUND = @"sound";
+NSString *const SEND_MESSAGE_INTENT = @"sendMessageIntent";
+NSString *const SEND_MESSAGE_INTENT_RECIPIENTS = @"recipients";
+NSString *const SEND_MESSAGE_INTENT_CONTENT = @"content";
+NSString *const SEND_MESSAGE_INTENT_CONVERSATION_TITLE = @"conversationTitle";
+NSString *const SEND_MESSAGE_INTENT_ICON = @"icon";
+NSString *const SEND_MESSAGE_INTENT_SENDER = @"sender";
+NSString *const PERSON_NAME = @"name";
+NSString *const PERSON_ICON = @"icon";
+NSString *const PERSON_IS_ME = @"isMe";
 NSString *const ATTACHMENTS = @"attachments";
 NSString *const ATTACHMENT_IDENTIFIER = @"identifier";
 NSString *const ATTACHMENT_FILE_PATH = @"filePath";
@@ -627,6 +636,7 @@ static FlutterError *getFlutterError(NSError *error) {
     API_AVAILABLE(ios(10.0)) {
   UNMutableNotificationContent *content =
       [[UNMutableNotificationContent alloc] init];
+
   if ([self containsKey:TITLE forDictionary:arguments]) {
     content.title = arguments[TITLE];
   }
@@ -650,6 +660,101 @@ static FlutterError *getFlutterError(NSError *error) {
   }
   if (arguments[PLATFORM_SPECIFICS] != [NSNull null]) {
     NSDictionary *platformSpecifics = arguments[PLATFORM_SPECIFICS];
+  if ([self containsKey:SEND_MESSAGE_INTENT forDictionary:platformSpecifics]) {
+      @try {
+          NSDictionary *sendIntentDict = platformSpecifics[SEND_MESSAGE_INTENT];
+          
+          NSArray<NSDictionary *> *recipientsDict = sendIntentDict[SEND_MESSAGE_INTENT_RECIPIENTS];
+          
+          NSMutableArray<INPerson *> *sendMessageIntentRecipients =
+          [NSMutableArray arrayWithCapacity:recipientsDict.count];
+          if (recipientsDict.count > 0) {
+              for (NSDictionary *recipientDict in recipientsDict) {
+                  INPersonHandle *handle = [[INPersonHandle alloc] initWithValue:[recipientDict objectForKey:PERSON_NAME] type:INPersonHandleTypeUnknown];
+                  NSPersonNameComponents *nameComponents = [[NSPersonNameComponents alloc] init];
+                  nameComponents.nickname = [recipientDict objectForKey:PERSON_NAME];
+                  
+                  INPerson *person = [[INPerson alloc] initWithPersonHandle:handle
+                                                             nameComponents:nameComponents
+                                                                displayName:[recipientDict objectForKey:PERSON_NAME]
+                                                                      image: nil
+                                                          contactIdentifier:nil
+                                                           customIdentifier:nil
+                                                                       isMe:[recipientDict[PERSON_IS_ME] isEqual:@YES]];
+                  [sendMessageIntentRecipients addObject:person];
+              }
+              
+          }
+          
+        
+          
+          NSDictionary *senderDict = sendIntentDict[SEND_MESSAGE_INTENT_SENDER];
+          NSString *senderName = senderDict[PERSON_NAME];
+          NSString *senderIconPath = senderDict[PERSON_ICON];
+          
+          
+          INPersonHandle *handle = [[INPersonHandle alloc] initWithValue:senderName type:INPersonHandleTypeUnknown];
+          NSPersonNameComponents *nameComponents = [[NSPersonNameComponents alloc] init];
+          nameComponents.nickname = senderName;
+          
+          INImage *senderImage = nil;
+          if(senderIconPath != nil) {
+              senderImage = [INImage imageWithURL:[NSURL fileURLWithPath:senderIconPath]];
+          }
+          
+          INPerson *senderPerson = [[INPerson alloc] initWithPersonHandle:handle
+                                                                      nameComponents:nameComponents
+                                                                         displayName:senderName
+                                                                               image: senderImage
+                                                                   contactIdentifier:nil
+                                                                    customIdentifier:nil
+                                                                                isMe:[senderDict[PERSON_IS_ME] isEqual:@YES]];
+          
+          NSString *conversationTitle = sendIntentDict[SEND_MESSAGE_INTENT_CONVERSATION_TITLE];
+          NSString *messageContent = sendIntentDict[SEND_MESSAGE_INTENT_CONTENT];
+          
+          INSpeakableString *speak = nil;
+          
+          if (conversationTitle != nil) {
+              speak = [[INSpeakableString alloc] initWithSpokenPhrase:conversationTitle];
+              [sendMessageIntentRecipients addObject:senderPerson];
+          }
+          INSendMessageIntent *intent = [[INSendMessageIntent alloc] initWithRecipients:sendMessageIntentRecipients outgoingMessageType:INOutgoingMessageTypeUnknown content:messageContent speakableGroupName:speak conversationIdentifier: conversationTitle serviceName:nil sender:senderPerson attachments:nil];
+          
+          
+          
+          NSString *conversationIconPath = sendIntentDict[SEND_MESSAGE_INTENT_ICON];
+          
+          if(speak != nil && conversationIconPath != nil) {
+              [intent setImage:[INImage imageWithURL:[NSURL fileURLWithPath:conversationIconPath]] forParameterNamed: @"speakableGroupName"];
+          }else{
+              if(senderImage != nil) {
+                  [intent setImage:senderImage forParameterNamed: @"sender"];
+              }
+          }
+          //[intent setImage:[INImage imageWithURL:[NSURL URLWithString:sendMessageIntent[SEND_MESSAGE_INTENT_ICON]]] forParameterNamed: INSpeakableString];
+          
+          
+          
+          NSError *error = nil;
+          INInteraction *interaction = [[INInteraction alloc] initWithIntent:intent response:nil];
+          
+          interaction.direction = INInteractionDirectionIncoming;
+          
+          [interaction donateInteractionWithCompletion:^(NSError * _Nullable donationError) {
+              if (donationError) {
+                  NSLog(@"Erreur lors du don de l'intent : %@", donationError);
+              }
+          }];
+          
+          UNNotificationContent *new = [content contentByUpdatingWithProvider:intent error:nil];
+          content = [new mutableCopy];
+      }
+      @catch (NSException *exception) {
+          NSLog(@"%@", exception.reason);
+       }
+
+  }
     if ([self containsKey:PRESENT_ALERT forDictionary:platformSpecifics]) {
       presentAlert = [[platformSpecifics objectForKey:PRESENT_ALERT] boolValue];
     }

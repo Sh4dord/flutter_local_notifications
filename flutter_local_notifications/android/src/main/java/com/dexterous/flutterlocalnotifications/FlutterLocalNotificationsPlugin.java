@@ -52,6 +52,7 @@ import com.dexterous.flutterlocalnotifications.isolate.IsolatePreferences;
 import com.dexterous.flutterlocalnotifications.models.BitmapSource;
 import com.dexterous.flutterlocalnotifications.models.DateTimeComponents;
 import com.dexterous.flutterlocalnotifications.models.IconSource;
+import com.dexterous.flutterlocalnotifications.models.ImageShape;
 import com.dexterous.flutterlocalnotifications.models.MessageDetails;
 import com.dexterous.flutterlocalnotifications.models.NotificationAction;
 import com.dexterous.flutterlocalnotifications.models.NotificationAction.NotificationActionInput;
@@ -70,6 +71,7 @@ import com.dexterous.flutterlocalnotifications.models.styles.DefaultStyleInforma
 import com.dexterous.flutterlocalnotifications.models.styles.InboxStyleInformation;
 import com.dexterous.flutterlocalnotifications.models.styles.MessagingStyleInformation;
 import com.dexterous.flutterlocalnotifications.models.styles.StyleInformation;
+import com.dexterous.flutterlocalnotifications.utils.BitmapUtils;
 import com.dexterous.flutterlocalnotifications.utils.BooleanUtils;
 import com.dexterous.flutterlocalnotifications.utils.LongUtils;
 import com.dexterous.flutterlocalnotifications.utils.StringUtils;
@@ -296,7 +298,7 @@ public class FlutterLocalNotificationsPlugin
       for (NotificationAction action : notificationDetails.actions) {
         IconCompat icon = null;
         if (!TextUtils.isEmpty(action.icon) && action.iconSource != null) {
-          icon = getIconFromSource(context, action.icon, action.iconSource);
+          icon = getIconFromSource(context, action.icon, action.iconSource, null);
         }
 
         Intent actionIntent;
@@ -375,7 +377,7 @@ public class FlutterLocalNotificationsPlugin
     setSmallIcon(context, notificationDetails, builder);
     builder.setLargeIcon(
         getBitmapFromSource(
-            context, notificationDetails.largeIcon, notificationDetails.largeIconBitmapSource));
+            context, notificationDetails.largeIcon, notificationDetails.largeIconBitmapSource, notificationDetails.largeIconBitmapShape));
     if (notificationDetails.color != null) {
       builder.setColor(notificationDetails.color.intValue());
     }
@@ -833,7 +835,7 @@ public class FlutterLocalNotificationsPlugin
   }
 
   private static Bitmap getBitmapFromSource(
-      Context context, Object data, BitmapSource bitmapSource) {
+      Context context, Object data, BitmapSource bitmapSource, ImageShape imageShape) {
     Bitmap bitmap = null;
     if (bitmapSource == BitmapSource.DrawableResource) {
       bitmap =
@@ -849,7 +851,7 @@ public class FlutterLocalNotificationsPlugin
     return bitmap;
   }
 
-  private static IconCompat getIconFromSource(Context context, Object data, IconSource iconSource) {
+  private static IconCompat getIconFromSource(Context context, Object data, IconSource iconSource, ImageShape imageShape) {
     IconCompat icon = null;
     switch (iconSource) {
       case DrawableResource:
@@ -857,7 +859,7 @@ public class FlutterLocalNotificationsPlugin
             IconCompat.createWithResource(context, getDrawableResourceId(context, (String) data));
         break;
       case BitmapFilePath:
-        icon = IconCompat.createWithBitmap(BitmapFactory.decodeFile((String) data));
+        icon = IconCompat.createWithBitmap(BitmapUtils.createShapedBitmap(BitmapFactory.decodeFile((String) data), imageShape));
         break;
       case ContentUri:
         icon = IconCompat.createWithContentUri((String) data);
@@ -1055,14 +1057,14 @@ public class FlutterLocalNotificationsPlugin
             getBitmapFromSource(
                 context,
                 bigPictureStyleInformation.largeIcon,
-                bigPictureStyleInformation.largeIconBitmapSource));
+                bigPictureStyleInformation.largeIconBitmapSource, null));
       }
     }
     bigPictureStyle.bigPicture(
         getBitmapFromSource(
             context,
             bigPictureStyleInformation.bigPicture,
-            bigPictureStyleInformation.bigPictureBitmapSource));
+            bigPictureStyleInformation.bigPictureBitmapSource, null));
     builder.setStyle(bigPictureStyle);
   }
 
@@ -1111,12 +1113,13 @@ public class FlutterLocalNotificationsPlugin
     messagingStyle.setGroupConversation(
         BooleanUtils.getValue(messagingStyleInformation.groupConversation));
     if (messagingStyleInformation.conversationTitle != null) {
-      messagingStyle.setConversationTitle(messagingStyleInformation.conversationTitle);
+      messagingStyle.setConversationTitle(
+              messagingStyleInformation.htmlFormatTitle ? fromHtml(messagingStyleInformation.conversationTitle) : messagingStyleInformation.conversationTitle);
     }
     if (messagingStyleInformation.messages != null
         && !messagingStyleInformation.messages.isEmpty()) {
       for (MessageDetails messageDetails : messagingStyleInformation.messages) {
-        NotificationCompat.MessagingStyle.Message message = createMessage(context, messageDetails);
+        NotificationCompat.MessagingStyle.Message message = createMessage(context, messageDetails, messagingStyleInformation.htmlFormatBody);
         messagingStyle.addMessage(message);
       }
     }
@@ -1124,10 +1127,10 @@ public class FlutterLocalNotificationsPlugin
   }
 
   private static NotificationCompat.MessagingStyle.Message createMessage(
-      Context context, MessageDetails messageDetails) {
+      Context context, MessageDetails messageDetails, Boolean htmlFormat) {
     NotificationCompat.MessagingStyle.Message message =
         new NotificationCompat.MessagingStyle.Message(
-            messageDetails.text,
+                htmlFormat ? fromHtml(messageDetails.text) : messageDetails.text,
             messageDetails.timestamp,
             buildPerson(context, messageDetails.person));
     if (messageDetails.dataUri != null && messageDetails.dataMimeType != null) {
@@ -1145,7 +1148,7 @@ public class FlutterLocalNotificationsPlugin
     personBuilder.setBot(BooleanUtils.getValue(personDetails.bot));
     if (personDetails.icon != null && personDetails.iconBitmapSource != null) {
       personBuilder.setIcon(
-          getIconFromSource(context, personDetails.icon, personDetails.iconBitmapSource));
+          getIconFromSource(context, personDetails.icon, personDetails.iconBitmapSource, personDetails.iconBitmapShape));
     }
     personBuilder.setImportant(BooleanUtils.getValue(personDetails.important));
     if (personDetails.key != null) {
@@ -1560,6 +1563,8 @@ public class FlutterLocalNotificationsPlugin
         HashMap<String, Object> activeNotificationPayload = new HashMap<>();
         activeNotificationPayload.put("id", activeNotification.getId());
         Notification notification = activeNotification.getNotification();
+        Bundle b = notification.extras;
+        String payload = b.getString(PAYLOAD);
         if (VERSION.SDK_INT >= VERSION_CODES.O) {
           activeNotificationPayload.put("channelId", notification.getChannelId());
         }

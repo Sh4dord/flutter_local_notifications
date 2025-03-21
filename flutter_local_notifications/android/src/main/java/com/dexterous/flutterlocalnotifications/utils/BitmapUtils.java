@@ -20,7 +20,7 @@ public class BitmapUtils {
             return createRoundedBitmap(bitmap);
         }
         if(imageShape == ImageShape.Circular) {
-            return createRoundedBitmap(bitmap);
+            return createCircularBitmap(bitmap);
         }
         return bitmap;
     }

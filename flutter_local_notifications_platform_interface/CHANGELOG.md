@@ -1,14 +1,23 @@
-## [10.0.0-dev.2]
+## [12.0.1]
 
+* Fixed API docs of `NotificationResponseType.selectedNotificationAction`. Thanks to the PR from [fush1m1](https://github.com/Fush1m1)
+
+## [12.0.0]
+
+* Added `zonedScheduled()` to the platform interface and moved `DateTimeComponents` from main plugin to platform interface. Thanks to the PR from [Gaurav Yadav](https://github.com/Gaurav-CareMonitor)
+
+## [11.0.0]
+
+* **Breaking change** bumped minimum Flutter SDK requirement to 3.38.1 and Dart SDK requirement to 3.10.0
+
+## [10.0.0]
+
+* **Breaking change** bumped minimum Flutter SDK requirement to 3.32.0 and Dart SDK requirement to 3.8.0
 * **Breaking changes** the positional parameters in the following methods have now been converted to named parameters
   * `show()`
   * `periodicallyShow()`
   * `periodicallyShowWithDuration()`
   * `cancel()`
-
-## [10.0.0-dev.1]
-
-* **Breaking change** bumped minimum Flutter SDK requirement to 3.32.0 and Dart SDK requirement to 3.8.0
 * Added `flutter_lints` to apply linter rules
 
 ## [9.1.0]

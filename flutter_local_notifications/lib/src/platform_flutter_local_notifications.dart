@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:clock/clock.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications_platform_interface/flutter_local_notifications_platform_interface.dart';
-import 'package:timezone/timezone.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 import 'callback_dispatcher.dart';
 import 'helpers.dart';
@@ -24,7 +24,7 @@ import 'platform_specifics/darwin/initialization_settings.dart';
 import 'platform_specifics/darwin/mappers.dart';
 import 'platform_specifics/darwin/notification_details.dart';
 import 'platform_specifics/darwin/notification_enabled_options.dart';
-import 'types.dart';
+
 import 'tz_datetime_mapper.dart';
 
 const MethodChannel _channel = MethodChannel(
@@ -243,15 +243,16 @@ class AndroidFlutterLocalNotificationsPlugin
   /// This will also require additional setup for the app, especially in the
   /// app's `AndroidManifest.xml` file. Please see check the readme for further
   /// details.
+  @override
   Future<void> zonedSchedule({
     required int id,
     String? title,
     String? body,
-    required TZDateTime scheduledDate,
-    AndroidNotificationDetails? notificationDetails,
-    required AndroidScheduleMode scheduleMode,
+    required tz.TZDateTime scheduledDate,
     String? payload,
     DateTimeComponents? matchDateTimeComponents,
+    AndroidNotificationDetails? notificationDetails,
+    AndroidScheduleMode scheduleMode = AndroidScheduleMode.exact,
   }) async {
     validateId(id);
     validateDateIsInTheFuture(scheduledDate, matchDateTimeComponents);
@@ -674,9 +675,13 @@ class IOSFlutterLocalNotificationsPlugin
 
   DidReceiveNotificationResponseCallback? _onDidReceiveNotificationResponse;
 
-  /// Initializes the plugin.
+  /// Initializes the plugin for iOS.
   ///
   /// Call this method on application before using the plugin further.
+  ///
+  /// Accepts either [DarwinInitializationSettings] for basic Darwin-based
+  /// configuration or [IOSInitializationSettings] for iOS-specific features
+  /// like CarPlay notifications.
   ///
   /// Initialisation may also request notification permissions where users will
   /// see a permissions prompt. This may be fine in cases where it's acceptable
@@ -689,6 +694,11 @@ class IOSFlutterLocalNotificationsPlugin
   /// false.
   /// [requestPermissions] can then be called to request permissions when
   /// needed.
+  ///
+  /// When using [IOSInitializationSettings], CarPlay notifications can be
+  /// enabled by setting [IOSInitializationSettings.requestCarPlayPermission]
+  /// to true. When using [DarwinInitializationSettings], CarPlay is disabled
+  /// by default.
   ///
   /// The [onDidReceiveNotificationResponse] callback is fired when the user
   /// selects a notification or notification action that should show the
@@ -710,7 +720,17 @@ class IOSFlutterLocalNotificationsPlugin
     _onDidReceiveNotificationResponse = onDidReceiveNotificationResponse;
     _channel.setMethodCallHandler(_handleMethod);
 
-    final Map<String, Object> arguments = settings.toMap();
+    // Convert to map using appropriate mapper based on runtime type
+    // IOSInitializationSettings.toMap() automatically includes CarPlay field
+    // DarwinInitializationSettings.toMap() does not include CarPlay field
+    final Map<String, Object> arguments;
+    if (settings is IOSInitializationSettings) {
+      // Explicitly call iOS mapper extension
+      arguments = settings.toMap();
+    } else {
+      // Use Darwin mapper for DarwinInitializationSettings
+      arguments = settings.toMap();
+    }
 
     _evaluateBackgroundNotificationCallback(
       onDidReceiveBackgroundNotificationResponse,
@@ -722,12 +742,17 @@ class IOSFlutterLocalNotificationsPlugin
 
   /// Requests the specified permission(s) from user and returns current
   /// permission status.
+  ///
+  /// On iOS, the [carPlay] parameter requests permission to show notifications
+  /// on CarPlay when connected to a compatible vehicle. This requires iOS 10.0+
+  /// and is only applicable to iOS devices.
   Future<bool?> requestPermissions({
     bool sound = false,
     bool alert = false,
     bool badge = false,
     bool provisional = false,
     bool critical = false,
+    bool carPlay = false,
     bool providesAppNotificationSettings = false,
   }) => _channel.invokeMethod<bool?>('requestPermissions', <String, bool>{
     'sound': sound,
@@ -735,6 +760,7 @@ class IOSFlutterLocalNotificationsPlugin
     'badge': badge,
     'provisional': provisional,
     'critical': critical,
+    'carPlay': carPlay,
     'providesAppNotificationSettings': providesAppNotificationSettings,
   });
 
@@ -757,19 +783,21 @@ class IOSFlutterLocalNotificationsPlugin
           isCriticalEnabled: dict['isCriticalEnabled'] ?? false,
           isProvidesAppNotificationSettingsEnabled:
               dict['isProvidesAppNotificationSettingsEnabled'] ?? false,
+          isCarPlayEnabled: dict['isCarPlayEnabled'] ?? false,
         );
       });
 
   /// Schedules a notification to be shown at the specified time in the
   /// future in a specific time zone.
+  @override
   Future<void> zonedSchedule({
     required int id,
     String? title,
     String? body,
-    required TZDateTime scheduledDate,
-    DarwinNotificationDetails? notificationDetails,
+    required tz.TZDateTime scheduledDate,
     String? payload,
     DateTimeComponents? matchDateTimeComponents,
+    DarwinNotificationDetails? notificationDetails,
   }) async {
     validateId(id);
     validateDateIsInTheFuture(scheduledDate, matchDateTimeComponents);
@@ -958,14 +986,15 @@ class MacOSFlutterLocalNotificationsPlugin
 
   /// Schedules a notification to be shown at the specified date and time
   /// relative to a specific time zone.
+  @override
   Future<void> zonedSchedule({
     required int id,
     String? title,
     String? body,
-    required TZDateTime scheduledDate,
-    DarwinNotificationDetails? notificationDetails,
+    required tz.TZDateTime scheduledDate,
     String? payload,
     DateTimeComponents? matchDateTimeComponents,
+    DarwinNotificationDetails? notificationDetails,
   }) async {
     validateId(id);
     validateDateIsInTheFuture(scheduledDate, matchDateTimeComponents);

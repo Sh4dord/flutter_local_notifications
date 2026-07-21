@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-// ignore: unnecessary_import
-import 'dart:typed_data';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -20,6 +18,7 @@ import 'configure_in_app_toggle.dart';
 import 'padded_button.dart';
 import 'plugin.dart';
 import 'repeating.dart' as repeating;
+import 'web_stub.dart' if (dart.library.js_interop) 'web.dart' as web;
 import 'windows.dart' as windows;
 
 /// Streams are created so that app can respond to notification-related events
@@ -140,7 +139,14 @@ Future<void> main() async {
 
   /// Note: permissions aren't requested here just to demonstrate that can be
   /// done later
-  final DarwinInitializationSettings initializationSettingsDarwin =
+  final IOSInitializationSettings initializationSettingsIOS =
+      IOSInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+        notificationCategories: darwinNotificationCategories,
+      );
+  final DarwinInitializationSettings initializationSettingsMacOS =
       DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
@@ -156,8 +162,8 @@ Future<void> main() async {
 
   final InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
-    iOS: initializationSettingsDarwin,
-    macOS: initializationSettingsDarwin,
+    iOS: initializationSettingsIOS,
+    macOS: initializationSettingsMacOS,
     linux: initializationSettingsLinux,
     windows: windows.initSettings,
   );
@@ -195,11 +201,11 @@ Future<void> _configureLocalTimeZone() async {
     return;
   }
   tz.initializeTimeZones();
-  if (Platform.isWindows) {
+  if (!kIsWeb && Platform.isWindows) {
     return;
   }
-  final String? timeZoneName = await FlutterTimezone.getLocalTimezone();
-  tz.setLocalLocation(tz.getLocation(timeZoneName!));
+  final TimezoneInfo timeZoneInfo = await FlutterTimezone.getLocalTimezone();
+  tz.setLocalLocation(tz.getLocation(timeZoneInfo.identifier));
 }
 
 class HomePage extends StatefulWidget {
@@ -227,6 +233,8 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _isAndroidPermissionGranted();
+    _isWebPermissionGranted();
+
     _requestPermissions();
     _configureSelectNotificationSubject();
 
@@ -256,7 +264,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _isAndroidPermissionGranted() async {
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       final bool granted =
           await flutterLocalNotificationsPlugin
               .resolvePlatformSpecificImplementation<
@@ -271,8 +279,36 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _isWebPermissionGranted() async {
+    if (kIsWeb) {
+      final WebFlutterLocalNotificationsPlugin? webImplementation =
+          flutterLocalNotificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                WebFlutterLocalNotificationsPlugin
+              >();
+      final bool granted =
+          webImplementation?.permissionStatus ==
+          WebNotificationPermission.granted;
+
+      setState(() {
+        _notificationsEnabled = granted;
+      });
+    }
+  }
+
   Future<void> _requestPermissions() async {
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (kIsWeb) {
+      final WebFlutterLocalNotificationsPlugin? webImplementation =
+          flutterLocalNotificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                WebFlutterLocalNotificationsPlugin
+              >();
+      final bool granted =
+          await webImplementation?.requestNotificationsPermission() ?? false;
+      setState(() {
+        _notificationsEnabled = granted;
+      });
+    } else if (Platform.isIOS || Platform.isMacOS) {
       await flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin
@@ -299,7 +335,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _requestPermissionsWithCriticalAlert() async {
-    if (Platform.isIOS || Platform.isMacOS) {
+    if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
       await flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin
@@ -338,8 +374,11 @@ class _HomePageState extends State<HomePage> {
     ) async {
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (BuildContext context) =>
-              SecondPage(response?.payload, data: response?.data),
+          builder: (BuildContext context) => SecondPage(
+            response?.payload,
+            data: response?.data,
+            response: response,
+          ),
         ),
       );
     });
@@ -484,14 +523,16 @@ class _HomePageState extends State<HomePage> {
                   await _cancelAllNotifications();
                 },
               ),
-              if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)
+              if (!kIsWeb &&
+                  (Platform.isAndroid || Platform.isIOS || Platform.isMacOS))
                 PaddedElevatedButton(
                   buttonText: 'Cancel all pending notifications',
                   onPressed: () async {
                     await _cancelAllPendingNotifications();
                   },
                 ),
-              if (!Platform.isWindows) ...repeating.examples(context),
+              if (!kIsWeb && !Platform.isWindows)
+                ...repeating.examples(context),
               const Divider(),
               const Text(
                 'Notifications with actions',
@@ -503,7 +544,7 @@ class _HomePageState extends State<HomePage> {
                   await _showNotificationWithActions();
                 },
               ),
-              if (Platform.isLinux)
+              if (!kIsWeb && Platform.isLinux)
                 PaddedElevatedButton(
                   buttonText:
                       'Show notification with icon action (if supported)',
@@ -511,14 +552,14 @@ class _HomePageState extends State<HomePage> {
                     await _showNotificationWithIconAction();
                   },
                 ),
-              if (!Platform.isLinux)
+              if (!kIsWeb && !Platform.isLinux)
                 PaddedElevatedButton(
                   buttonText: 'Show notification with text action',
                   onPressed: () async {
                     await _showNotificationWithTextAction();
                   },
                 ),
-              if (!Platform.isLinux)
+              if (!kIsWeb && !Platform.isLinux)
                 PaddedElevatedButton(
                   buttonText: 'Show notification with text choice',
                   onPressed: () async {
@@ -526,7 +567,7 @@ class _HomePageState extends State<HomePage> {
                   },
                 ),
               const Divider(),
-              if (Platform.isAndroid) ...<Widget>[
+              if (!kIsWeb && Platform.isAndroid) ...<Widget>[
                 const Text(
                   'Android-specific examples',
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -616,6 +657,14 @@ class _HomePageState extends State<HomePage> {
                       'on expand',
                   onPressed: () async {
                     await _showBigPictureNotificationHiddenLargeIcon();
+                  },
+                ),
+                PaddedElevatedButton(
+                  buttonText:
+                      'Show big picture notification, show big picture when '
+                      'collapsed (API 31+)',
+                  onPressed: () async {
+                    await _showBigPictureNotificationShowWhenCollapsed();
                   },
                 ),
                 PaddedElevatedButton(
@@ -886,7 +935,7 @@ class _HomePageState extends State<HomePage> {
                     await _showNotificationInNotificationCentreOnly();
                   },
                 ),
-                if (Platform.isIOS) ...<Widget>[
+                if (!kIsWeb && Platform.isIOS) ...<Widget>[
                   ConfigureInAppToggle(
                     flutterLocalNotificationsPlugin:
                         flutterLocalNotificationsPlugin,
@@ -1074,6 +1123,8 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
               if (!kIsWeb && Platform.isWindows) ...windows.examples(),
+              if (kIsWeb)
+                ...web.webExamples(_notificationsEnabled, _requestPermissions),
             ],
           ),
         ),
@@ -1843,6 +1894,44 @@ class _HomePageState extends State<HomePage> {
         BigPictureStyleInformation(
           FilePathAndroidBitmap(bigPicturePath),
           hideExpandedLargeIcon: true,
+          contentTitle: 'overridden <b>big</b> content title',
+          htmlFormatContentTitle: true,
+          summaryText: 'summary <i>text</i>',
+          htmlFormatSummaryText: true,
+        );
+    final AndroidNotificationDetails androidNotificationDetails =
+        AndroidNotificationDetails(
+          'big text channel id',
+          'big text channel name',
+          channelDescription: 'big text channel description',
+          largeIcon: FilePathAndroidBitmap(largeIconPath),
+          styleInformation: bigPictureStyleInformation,
+        );
+    final NotificationDetails notificationDetails = NotificationDetails(
+      android: androidNotificationDetails,
+    );
+    await flutterLocalNotificationsPlugin.show(
+      id: id++,
+      title: 'big text title',
+      body: 'silent body',
+      notificationDetails: notificationDetails,
+    );
+  }
+
+  Future<void> _showBigPictureNotificationShowWhenCollapsed() async {
+    final String largeIconPath = await _downloadAndSaveFile(
+      'https://dummyimage.com/48x48',
+      'largeIcon',
+    );
+    final String bigPicturePath = await _downloadAndSaveFile(
+      'https://dummyimage.com/400x800',
+      'bigPicture',
+    );
+    final BigPictureStyleInformation bigPictureStyleInformation =
+        BigPictureStyleInformation(
+          FilePathAndroidBitmap(bigPicturePath),
+          hideExpandedLargeIcon: true,
+          showBigPictureWhenCollapsed: true,
           contentTitle: 'overridden <b>big</b> content title',
           htmlFormatContentTitle: true,
           summaryText: 'summary <i>text</i>',
@@ -2969,7 +3058,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<Widget> _getActiveNotificationsDialogContent() async {
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       final AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
       if (androidInfo.version.sdkInt < 23) {
@@ -2977,7 +3066,7 @@ class _HomePageState extends State<HomePage> {
           '"getActiveNotifications" is available only for Android 6.0 or newer',
         );
       }
-    } else if (Platform.isIOS) {
+    } else if (!kIsWeb && Platform.isIOS) {
       final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       final IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
       final List<String> fullVersion = iosInfo.systemVersion.split('.');
@@ -3020,7 +3109,8 @@ class _HomePageState extends State<HomePage> {
                     'title: ${activeNotification.title}\n'
                     'body: ${activeNotification.body}',
                   ),
-                  if (Platform.isAndroid &&
+                  if (!kIsWeb &&
+                      Platform.isAndroid &&
                       activeNotification.id != null) ...<Widget>[
                     Text('bigText: ${activeNotification.bigText}'),
                     TextButton(
@@ -3480,12 +3570,14 @@ Future<LinuxServerCapabilities> getLinuxCapabilities() =>
         .getCapabilities();
 
 class SecondPage extends StatefulWidget {
-  const SecondPage(this.payload, {this.data, Key? key}) : super(key: key);
+  const SecondPage(this.payload, {this.data, this.response, Key? key})
+    : super(key: key);
 
   static const String routeName = '/secondPage';
 
   final String? payload;
   final Map<String, dynamic>? data;
+  final NotificationResponse? response;
 
   @override
   State<StatefulWidget> createState() => SecondPageState();
@@ -3506,18 +3598,57 @@ class SecondPageState extends State<SecondPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Second Screen')),
     body: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text('payload ${_payload ?? ''}'),
-          Text('data ${_data ?? ''}'),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('Go back!'),
-          ),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Text(
+              'Notification Response Details',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            _InfoValueString(
+              title: 'Notification ID:',
+              value: widget.response?.id ?? 'null',
+            ),
+            _InfoValueString(
+              title: 'Action ID:',
+              value: widget.response?.actionId ?? 'null',
+            ),
+            _InfoValueString(
+              title: 'Input (reply text):',
+              value: widget.response?.input ?? 'null',
+            ),
+            _InfoValueString(
+              title: 'Response Type:',
+              value: widget.response?.notificationResponseType.name ?? 'null',
+            ),
+            _InfoValueString(title: 'Payload:', value: _payload ?? 'null'),
+            const SizedBox(height: 8),
+            if (_data != null && _data!.isNotEmpty) ...<Widget>[
+              const Text(
+                'Data:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              ..._data!.entries.map(
+                (MapEntry<String, dynamic> entry) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text('  ${entry.key}: ${entry.value}'),
+                ),
+              ),
+            ] else
+              const Text('Data: null or empty'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Go back!'),
+            ),
+          ],
+        ),
       ),
     ),
   );

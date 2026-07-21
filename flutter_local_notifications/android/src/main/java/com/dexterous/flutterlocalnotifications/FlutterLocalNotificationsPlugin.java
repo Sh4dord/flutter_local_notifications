@@ -1079,6 +1079,10 @@ public class FlutterLocalNotificationsPlugin
             context,
             bigPictureStyleInformation.bigPicture,
             bigPictureStyleInformation.bigPictureBitmapSource));
+    if (VERSION.SDK_INT >= VERSION_CODES.S
+        && Boolean.TRUE.equals(bigPictureStyleInformation.showBigPictureWhenCollapsed)) {
+      bigPictureStyle.showBigPictureWhenCollapsed(true);
+    }
     builder.setStyle(bigPictureStyle);
   }
 
@@ -1984,9 +1988,15 @@ public class FlutterLocalNotificationsPlugin
       permissionRequestProgress = PermissionRequestProgress.None;
     } else {
       permissionRequestProgress = PermissionRequestProgress.RequestingNotificationPolicyAccess;
-      mainActivity.startActivityForResult(
-          new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS),
-          NOTIFICATION_POLICY_ACCESS_REQUEST_CODE);
+      // Highlights the app's row on the settings list.
+      String packageName = applicationContext.getPackageName();
+      Bundle highlightArgs = new Bundle();
+      highlightArgs.putString(":settings:fragment_args_key", packageName);
+      Intent intent =
+          new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+              .putExtra(":settings:fragment_args_key", packageName)
+              .putExtra(":settings:show_fragment_args", highlightArgs);
+      mainActivity.startActivityForResult(intent, NOTIFICATION_POLICY_ACCESS_REQUEST_CODE);
     }
   }
 

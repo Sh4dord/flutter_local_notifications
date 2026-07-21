@@ -218,7 +218,9 @@ class FlutterLocalNotificationsWindows extends WindowsNotificationsBase {
     required int id,
     String? title,
     String? body,
+    String? payload,
     required RepeatInterval repeatInterval,
+    WindowsNotificationDetails? notificationDetails,
   }) async {
     throw UnsupportedError(
       'Windows devices cannot periodically show notifications',
@@ -310,8 +312,9 @@ class FlutterLocalNotificationsWindows extends WindowsNotificationsBase {
     String? title,
     String? body,
     required TZDateTime scheduledDate,
-    WindowsNotificationDetails? notificationDetails,
     String? payload,
+    DateTimeComponents? matchDateTimeComponents,
+    WindowsNotificationDetails? notificationDetails,
   }) async => using((Arena arena) {
     if (!_isReady) {
       throw StateError(

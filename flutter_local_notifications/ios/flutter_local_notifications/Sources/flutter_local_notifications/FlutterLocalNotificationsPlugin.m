@@ -703,17 +703,25 @@ static FlutterError *getFlutterError(NSError *error) {
           [NSMutableArray arrayWithCapacity:recipientsDict.count];
           if (recipientsDict.count > 0) {
               for (NSDictionary *recipientDict in recipientsDict) {
+                  bool isMe = [recipientDict[PERSON_IS_ME] isEqual:@YES];
                   INPersonHandle *handle = [[INPersonHandle alloc] initWithValue:[recipientDict objectForKey:PERSON_NAME] type:INPersonHandleTypeUnknown];
-                  NSPersonNameComponents *nameComponents = [[NSPersonNameComponents alloc] init];
-                  nameComponents.nickname = [recipientDict objectForKey:PERSON_NAME];
+                  NSPersonNameComponents *nameComponents = nil;
+                  if(!isMe){
+                      nameComponents = [[NSPersonNameComponents alloc] init];
+                      nameComponents.nickname = [recipientDict objectForKey:PERSON_NAME];
+                  }
                   
+                  INImage *image = nil;
+                  if(recipientDict[PERSON_ICON] != nil) {
+                      image = [INImage imageWithURL:[NSURL fileURLWithPath:recipientDict[PERSON_ICON]]];
+                  }
                   INPerson *person = [[INPerson alloc] initWithPersonHandle:handle
                                                              nameComponents:nameComponents
                                                                 displayName:[recipientDict objectForKey:PERSON_NAME]
-                                                                      image: nil
+                                                                      image: image
                                                           contactIdentifier:nil
                                                            customIdentifier:nil
-                                                                       isMe:[recipientDict[PERSON_IS_ME] isEqual:@YES]];
+                                                                       isMe:isMe];
                   [sendMessageIntentRecipients addObject:person];
               }
               
@@ -750,9 +758,16 @@ static FlutterError *getFlutterError(NSError *error) {
           
           if (conversationTitle != nil) {
               speak = [[INSpeakableString alloc] initWithSpokenPhrase:conversationTitle];
-              [sendMessageIntentRecipients addObject:senderPerson];
           }
-          INSendMessageIntent *intent = [[INSendMessageIntent alloc] initWithRecipients:sendMessageIntentRecipients outgoingMessageType:INOutgoingMessageTypeUnknown content:messageContent speakableGroupName:speak conversationIdentifier: conversationTitle serviceName:nil sender:senderPerson attachments:nil];
+          INSendMessageIntent *intent = [[INSendMessageIntent alloc]
+                                         initWithRecipients:sendMessageIntentRecipients
+                                         outgoingMessageType:INOutgoingMessageTypeUnknown
+                                         content:messageContent
+                                         speakableGroupName:speak
+                                         conversationIdentifier: conversationTitle
+                                         serviceName:nil
+                                         sender:senderPerson
+                                         attachments:nil];
           
           
           
@@ -760,10 +775,9 @@ static FlutterError *getFlutterError(NSError *error) {
           
           if(speak != nil && conversationIconPath != nil) {
               [intent setImage:[INImage imageWithURL:[NSURL fileURLWithPath:conversationIconPath]] forParameterNamed: @"speakableGroupName"];
-          }else{
-              if(senderImage != nil) {
-                  [intent setImage:senderImage forParameterNamed: @"sender"];
-              }
+          }
+          if(senderImage != nil) {
+              [intent setImage:senderImage forParameterNamed: @"sender"];
           }
           //[intent setImage:[INImage imageWithURL:[NSURL URLWithString:sendMessageIntent[SEND_MESSAGE_INTENT_ICON]]] forParameterNamed: INSpeakableString];
           

@@ -8,6 +8,9 @@ abstract class AndroidBitmap<T> {
   /// The location of the bitmap.
   T get data;
 
+  /// Shape of the bitmap
+  ImageShape? get shape;
+
   /// The subclass source type
   AndroidBitmapSource get source;
 }
@@ -16,9 +19,11 @@ abstract class AndroidBitmap<T> {
 /// should be used as a bitmap on Android.
 class DrawableResourceAndroidBitmap implements AndroidBitmap<String> {
   /// Constructs an instance of [DrawableResourceAndroidBitmap].
-  const DrawableResourceAndroidBitmap(this._bitmap);
+  const DrawableResourceAndroidBitmap(this._bitmap, [this._shape]);
 
   final String _bitmap;
+
+  final ImageShape? _shape;
 
   /// The name of the drawable resource.
   ///
@@ -28,14 +33,19 @@ class DrawableResourceAndroidBitmap implements AndroidBitmap<String> {
 
   @override
   AndroidBitmapSource get source => AndroidBitmapSource.drawable;
+
+  @override
+  ImageShape? get shape => _shape;
 }
 
 /// Represents a file path that should be used for a bitmap on Android.
 class FilePathAndroidBitmap implements AndroidBitmap<String> {
   /// Constructs an instance of [FilePathAndroidBitmap].
-  const FilePathAndroidBitmap(this._bitmap);
+  const FilePathAndroidBitmap(this._bitmap, [this._shape]);
 
   final String _bitmap;
+
+  final ImageShape? _shape;
 
   /// A file path on the Android device that refers to the location of the
   /// bitmap.
@@ -44,12 +54,15 @@ class FilePathAndroidBitmap implements AndroidBitmap<String> {
 
   @override
   AndroidBitmapSource get source => AndroidBitmapSource.filePath;
+
+  @override
+  ImageShape? get shape => _shape;
 }
 
 /// Represents a base64 encoded AndroidBitmap.
 class ByteArrayAndroidBitmap implements AndroidBitmap<Uint8List> {
   /// Constructs an instance of [ByteArrayAndroidBitmap].
-  const ByteArrayAndroidBitmap(this._bitmap);
+  const ByteArrayAndroidBitmap(this._bitmap, [this._shape]);
 
   /// Constructs an instance of [ByteArrayAndroidBitmap] from a base64 string.
   factory ByteArrayAndroidBitmap.fromBase64String(String base64Image) =>
@@ -57,10 +70,15 @@ class ByteArrayAndroidBitmap implements AndroidBitmap<Uint8List> {
 
   final Uint8List _bitmap;
 
+  final ImageShape? _shape;
+
   /// A base64 encoded Bitmap string.
   @override
   Uint8List get data => _bitmap;
 
   @override
   AndroidBitmapSource get source => AndroidBitmapSource.byteArray;
+
+  @override
+  ImageShape? get shape => _shape;
 }

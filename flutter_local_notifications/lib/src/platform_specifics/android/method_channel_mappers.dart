@@ -103,6 +103,7 @@ extension PersonMapper on Person {
     return <String, Object>{
       'icon': icon!.data,
       'iconSource': icon!.source.index,
+      if (icon!.shape != null) 'iconShape': icon!.shape!.index,
     };
   }
 }
@@ -143,6 +144,8 @@ extension BigPictureStyleInformationMapper on BigPictureStyleInformation {
     return <String, Object>{
       'largeIcon': largeIcon!.data,
       'largeIconBitmapSource': largeIcon!.source.index,
+      if (largeIcon!.shape != null)
+        'largeIconBitmapShape': largeIcon!.shape!.index,
     };
   }
 }
@@ -292,6 +295,8 @@ extension AndroidNotificationDetailsMapper on AndroidNotificationDetails {
     return <String, Object>{
       'largeIcon': largeIcon!.data,
       'largeIconBitmapSource': largeIcon!.source.index,
+      if (largeIcon!.shape != null)
+        'largeIconBitmapShape': largeIcon!.shape!.index,
     };
   }
 

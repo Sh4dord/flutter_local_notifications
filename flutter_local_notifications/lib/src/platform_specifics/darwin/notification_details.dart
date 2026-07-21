@@ -1,5 +1,6 @@
 import 'interruption_level.dart';
 import 'notification_attachment.dart';
+import 'send_message_intent.dart';
 
 /// Configures notification details specific to Darwin-based operation systems
 /// such as iOS and macOS
@@ -15,6 +16,7 @@ class DarwinNotificationDetails {
     this.badgeNumber,
     this.attachments,
     this.subtitle,
+    this.sendMessageIntent,
     this.threadIdentifier,
     this.categoryIdentifier,
     this.interruptionLevel,
@@ -124,6 +126,13 @@ class DarwinNotificationDetails {
   /// On iOS, this property is only applicable to iOS 10 or newer.
   /// On macOS, this property is only applicable to macOS 10.14 or newer.
   final String? threadIdentifier;
+
+  /// Renders the notification as a communication notification by donating an
+  /// `INSendMessageIntent` built from this data (sender/recipients, message
+  /// content and optional avatars).
+  ///
+  /// On iOS, this property is only applicable to iOS 15 or newer.
+  final DarwinSendMessageIntent? sendMessageIntent;
 
   /// The identifier of the app-defined category object.
   ///
